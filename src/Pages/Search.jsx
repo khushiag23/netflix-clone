@@ -21,21 +21,41 @@ function Search() {
   const [movies, setMovies] = useState([]);
   const [moviePopupInfo, setMoviePopupInfo] = useState({});
 
-  const Search = (e) => {
-    setSearchQuery(e.target.value);
-    e.preventDefault();
-
-    axios
-      .get(
-        `/search/movie?api_key=${API_KEY}&language=en-US&query=${searchQuery}&page=1&include_adult=false`
-      )
-      .then((response) => {
-        setMovies(response.data.results);
-      });
-
-    if (searchQuery === "") {
+  const searchMovies = async (query) => {
+    if (query === "") {
+      setMovies([]);
+      return;
+    }
+    
+    try {
+      const response = await axios.get(
+        `/search/movie?api_key=${API_KEY}&language=en-US&query=${query}&page=1&include_adult=false`
+      );
+      setMovies(response.data.results);
+    } catch (error) {
+      console.error("Error searching movies:", error);
       setMovies([]);
     }
+  };
+
+  // Memoize the debounced search function
+  const debouncedSearch = React.useMemo(
+    () => {
+      let timeoutId;
+      return (query) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          searchMovies(query);
+        }, 500);
+      };
+    },
+    [] // Empty dependency array means this is created once on mount
+  );
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query);
   };
 
   const handleMoviePopup = (movieInfo) => {
@@ -49,14 +69,15 @@ function Search() {
 
       <div className="flex justify-center mt-20 mb-8">
         <input
-          onChange={Search}
+          onChange={handleSearchChange}
+          value={searchQuery}
           type="text"
           class="w-[60%] xl:w-1/4 bg-stone-700 text-white outline-none sm:text-sm rounded focus:ring-primary-600 focus:border-primary-600 block p-2.5 placeholder:text-white"
           placeholder="Search for Movie name"
           required=""
         ></input>
         <button
-          onClick={Search}
+          onClick={() => searchMovies(searchQuery)}
           class="flex items-center px-8 text-white bg-red-800 -ml-2 focus:outline-none focus:ring-primary-300 transition ease-in-out font-medium rounded text-sm py-1 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
         >
           <svg
